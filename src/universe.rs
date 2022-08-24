@@ -3,37 +3,67 @@ use std::fmt::{
     Write
 };
 
-#[repr(u8)]
+use rand::{Rng};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cell {
     Dead = 0,
     Alive = 1
 }
 
-impl Display for Cell {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Cell::Alive => "⬜ ",
-            Cell::Dead => "⬛ "
-        })?;
-
-        Ok(())
-    }
-}
-
 pub struct Universe {
     generation: u32,
     width: u32,
     height: u32,
+    underpopulation: u8,
+    overpopulation: u8,
+    aging: Vec<u8>,
+    reproduction: Vec<u8>,
     cells: Vec<Cell>
 }
 
 impl Universe {
-    pub fn new(width: u32, height: u32) -> Universe {
+    pub fn new(
+        width: u32,
+        height: u32,
+        life_rate: f64,
+        underpopulation: u8,
+        overpopulation: u8,
+        reproduction: Vec<u8>) -> Universe
+    {
         Universe {
             generation: 0,
             width,
             height,
+            underpopulation,
+            overpopulation,
+            aging: (underpopulation..overpopulation).collect(),
+            reproduction,
+            cells: {
+                let mut cells = vec![Cell::Dead; (width*height) as usize];
+                let mut rng = rand::thread_rng();
+
+                for i in 0..cells.len() {
+                    cells[i] = match rng.gen::<f64>() {
+                        x if x <= life_rate => Cell::Alive,
+                        _ => Cell::Dead
+                    }
+                }
+
+                cells
+            }
+        }    
+    }
+
+    pub fn from_fixed_cells(width: u32, height: u32) -> Universe {
+        Universe {
+            generation: 0,
+            width,
+            height,
+            underpopulation: 2,
+            overpopulation: 3,
+            aging: vec![2, 3],
+            reproduction: vec![3],
             cells: {
                 let mut cells = Vec::new();
                 
@@ -42,6 +72,31 @@ impl Universe {
                         cells.push(Cell::Alive);
                     }
                     cells.push(Cell::Dead);
+                }
+
+                cells
+            }
+        }
+    }
+
+    pub fn from_life_rate(width: u32, height: u32, life_rate: f64) -> Universe {
+        Universe {
+            generation: 0,
+            width,
+            height,
+            underpopulation: 2,
+            overpopulation: 3,
+            aging: vec![2, 3],
+            reproduction: vec![3],
+            cells: {
+                let mut cells = vec![Cell::Dead; (width*height) as usize];
+                let mut rng = rand::thread_rng();
+
+                for i in 0..cells.len() {
+                    cells[i] = match rng.gen::<f64>() {
+                        x if x <= life_rate => Cell::Alive,
+                        _ => Cell::Dead
+                    }
                 }
 
                 cells
@@ -59,10 +114,10 @@ impl Universe {
                 let alive_neighbours = self.alive_neighbour_count(row, col);
                 
                 match (cell, alive_neighbours) {
-                    (Cell::Alive, x) if x < 2 => next_generation[idx] = Cell::Dead,
-                    (Cell::Alive, 2) | (Cell::Alive, 3) => next_generation[idx] = Cell::Alive,
-                    (Cell::Alive, x) if x > 3 => next_generation[idx] = Cell::Dead,
-                    (Cell::Dead, 3) => next_generation[idx] = Cell::Alive,
+                    (Cell::Alive, x) if x < self.underpopulation => next_generation[idx] = Cell::Dead,
+                    (Cell::Alive, x) if x > self.overpopulation => next_generation[idx] = Cell::Dead,
+                    (Cell::Alive, x) if self.aging.contains(&x) => next_generation[idx] = Cell::Alive,
+                    (Cell::Dead, x) if self.reproduction.contains(&x) => next_generation[idx] = Cell::Alive,
                     (otherwise, _) => next_generation[idx] = otherwise
                 }
             }
