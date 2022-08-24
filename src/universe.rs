@@ -22,6 +22,7 @@ impl Display for Cell {
 }
 
 pub struct Universe {
+    generation: u32,
     width: u32,
     height: u32,
     cells: Vec<Cell>
@@ -30,6 +31,7 @@ pub struct Universe {
 impl Universe {
     pub fn new(width: u32, height: u32) -> Universe {
         Universe {
+            generation: 0,
             width,
             height,
             cells: {
@@ -66,6 +68,7 @@ impl Universe {
             }
         }
 
+        self.generation += 1;
         self.cells = next_generation;
     }
 
@@ -79,6 +82,10 @@ impl Universe {
 
 	pub fn cells(&self) -> &Vec<Cell> {
         &self.cells
+    }
+
+    pub fn generation(&self) -> u32 {
+        self.generation
     }
 
     fn get_index(&self, row: u32, col: u32) -> usize {
@@ -104,6 +111,7 @@ impl Universe {
 
 impl Display for Universe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Life in generation: {}\n", self.generation))?;
         for row in 0..self.height {
 			for col in 0..self.width {
 				let cell = self.cells[self.get_index(row, col)];
